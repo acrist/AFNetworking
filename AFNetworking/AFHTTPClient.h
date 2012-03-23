@@ -47,6 +47,18 @@ typedef enum {
 } AFHTTPClientParameterEncoding;
 
 /**
+ Returns a string, translated into base64
+ 
+ @param string The string that should be encoded
+ 
+ @discussion Base64 encoding can be helpful when fairly lengthy identifying information is used in an HTTP environment.
+ 
+ @return A Base64-encoded string. 
+ 
+ */
+extern NSString * AFBase64EncodedStringFromString(NSString *string);
+
+/**
  Returns a string, replacing certain characters with the equivalent percent escape sequence based on the specified encoding.
  
  @param string The string to URL encode
@@ -121,6 +133,9 @@ extern NSString * AFQueryStringFromParametersWithEncoding(NSDictionary *paramete
     NSMutableArray *_registeredHTTPOperationClassNames;
     NSMutableDictionary *_defaultHeaders;
     NSOperationQueue *_operationQueue;
+	// iVars for 32-bits
+	id _networkReachability;
+	id _networkReachabilityStatusBlock;
 }
 
 ///---------------------------------------

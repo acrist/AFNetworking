@@ -92,6 +92,13 @@ extern NSString * const AFNetworkingOperationDidFinishNotification;
     NSInteger _totalBytesRead;
     NSMutableData *_dataAccumulator;
     NSOutputStream *_outputStream;
+
+	// iVars for 32bits
+	NSString *_responseString;
+	id _uploadProgress, _downloadProgress;
+	id _authenticationAgainstProtectionSpace;
+	id _authenticationChallenge;
+	id _cacheResponse;
 }
 
 ///-------------------------------

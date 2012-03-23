@@ -27,6 +27,9 @@
 #import "AFJSONUtilities.h"
 
 #import <Availability.h>
+#import <sys/types.h>
+#import <sys/sysctl.h>
+#import <sys/utsname.h>
 
 #if __IPHONE_OS_VERSION_MIN_REQUIRED
 #import <UIKit/UIKit.h>
@@ -66,7 +69,7 @@ typedef void (^AFCompletionBlock)(void);
 
 static NSUInteger const kAFHTTPClientDefaultMaxConcurrentOperationCount = 4;
 
-static NSString * AFBase64EncodedStringFromString(NSString *string) {
+NSString * AFBase64EncodedStringFromString(NSString *string) {
     NSData *data = [NSData dataWithBytes:[string UTF8String] length:[string lengthOfBytesUsingEncoding:NSUTF8StringEncoding]];
     NSUInteger length = [data length];
     NSMutableData *mutableData = [NSMutableData dataWithLength:((length + 2) / 3) * 4];
@@ -162,7 +165,7 @@ NSString * AFQueryStringFromParametersWithEncoding(NSDictionary *parameters, NSS
     return [[AFQueryStringComponentsFromKeyAndValueWithEncoding(nil, parameters, stringEncoding) valueForKeyPath:@"description"] componentsJoinedByString:@"&"];
 }
 
-AFQueryStringComponent * AFQueryStringComponentFromKeyAndValueWithEncoding(id key, id value, NSStringEncoding stringEncoding) {
+static AFQueryStringComponent * AFQueryStringComponentFromKeyAndValueWithEncoding(id key, id value, NSStringEncoding stringEncoding) {
     return [[[AFQueryStringComponent alloc] initWithKey:AFURLEncodedStringFromStringWithEncoding([key description], stringEncoding) value:AFURLEncodedStringFromStringWithEncoding([value description], stringEncoding)] autorelease];
 }
 
@@ -235,6 +238,9 @@ static NSString * AFPropertyListStringFromParameters(NSDictionary *parameters) {
 - (void)startMonitoringNetworkReachability;
 - (void)stopMonitoringNetworkReachability;
 #endif
+#pragma mark User Agent String
++ (NSString *)userAgentString;
++ (NSString *)sysctlValueForName:(NSString *)name;
 @end
 
 @implementation AFHTTPClient
@@ -277,7 +283,8 @@ static NSString * AFPropertyListStringFromParameters(NSDictionary *parameters) {
     // User-Agent Header; see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.43
     [self setDefaultHeader:@"User-Agent" value:[NSString stringWithFormat:@"%@/%@ (%@, %@ %@, %@, Scale/%f)", [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleIdentifierKey], [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleVersionKey], @"unknown", [[UIDevice currentDevice] systemName], [[UIDevice currentDevice] systemVersion], [[UIDevice currentDevice] model], ([[UIScreen mainScreen] respondsToSelector:@selector(scale)] ? [[UIScreen mainScreen] scale] : 1.0)]];
 #elif __MAC_OS_X_VERSION_MIN_REQUIRED
-    [self setDefaultHeader:@"User-Agent" value:[NSString stringWithFormat:@"%@/%@ (%@)", [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleIdentifierKey], [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleVersionKey], @"unknown"]];
+//    [self setDefaultHeader:@"User-Agent" value:[NSString stringWithFormat:@"%@/%@ (%@)", [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleIdentifierKey], [[[NSBundle mainBundle] infoDictionary] objectForKey:(NSString *)kCFBundleVersionKey], @"unknown"]];
+    [self setDefaultHeader:@"User-Agent" value:[[self class] userAgentString]];
 #endif
     
 #ifdef _SYSTEMCONFIGURATION_H
@@ -587,6 +594,70 @@ static void AFReachabilityCallback(SCNetworkReachabilityRef __unused target, SCN
     NSURLRequest *request = [self requestWithMethod:@"PATCH" path:path parameters:parameters];
 	AFHTTPRequestOperation *operation = [self HTTPRequestOperationWithRequest:request success:success failure:failure];
     [self enqueueHTTPRequestOperation:operation];
+}
+
+#pragma mark - User Agent 
++ (NSString *)userAgentString; {
+	NSMutableString *userAgentString = [NSMutableString string];
+	NSString *appName = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleName"];
+	NSString *appVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleVersion"];
+	[userAgentString appendFormat:@"%@/%@;", appName, appVersion];
+	
+	NSString *apiWrapperName = @"AFNetworking";
+	NSString *apiWrapperVersion = @"0.9.0";
+	[userAgentString appendFormat:@" %@/%@;", apiWrapperName, apiWrapperVersion];
+	
+	NSString *hwModel = nil;
+	NSString *hwMachine = [self sysctlValueForName:@"hw.machine"];
+#if TARGET_OS_IPHONE
+	UIDevice *device = [UIDevice currentDevice];
+	hwModel = [device model]; // we take model for device
+#else
+	hwModel = [self sysctlValueForName:@"hw.model"];
+	hwModel = hwModel ? hwModel : @"Mac";
+#endif
+	if (hwModel && hwMachine) {
+		[userAgentString appendFormat:@" %@/%@;", hwModel, hwMachine];
+	}
+	
+	NSString *osType = nil;
+	NSString *osRelease = nil;
+#if TARGET_OS_IPHONE
+	osType = [device systemName];
+	osRelease = [device systemVersion];
+#else
+	osType = @"Mac OS X";
+	SInt32 versMajor, versMinor, versBugFix;
+	Gestalt(gestaltSystemVersionMajor, &versMajor);
+	Gestalt(gestaltSystemVersionMinor, &versMinor);
+	Gestalt(gestaltSystemVersionBugFix, &versBugFix);
+	osRelease = [NSString stringWithFormat:@"%d.%d.%d", versMajor, versMinor, versBugFix];
+#endif
+	if (osType && osRelease) {
+		[userAgentString appendFormat:@" %@/%@;", osType, osRelease];
+	}
+	
+	NSString *darwinType = [self sysctlValueForName:@"kern.ostype"];
+	NSString *darwinRelease = [self sysctlValueForName:@"kern.osrelease"];
+	if (darwinType && darwinRelease) {
+		[userAgentString appendFormat:@" %@/%@", darwinType, darwinRelease];
+	}
+	
+	return userAgentString;
+}
+
++ (NSString *)sysctlValueForName:(NSString *)name; {
+	size_t size;
+	const char* cName = [name UTF8String];
+	if (sysctlbyname(cName, NULL, &size, NULL, 0) != noErr) return nil;
+	
+	NSString *value = nil;
+	char *cValue = malloc(size);
+	if (sysctlbyname(cName, cValue, &size, NULL, 0) == noErr) {
+		value = [NSString stringWithCString:cValue encoding:NSUTF8StringEncoding];
+	}
+	free(cValue);
+	return value;
 }
 
 @end
