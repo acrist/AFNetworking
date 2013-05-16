@@ -27,7 +27,7 @@
 #if defined(__IPHONE_6_0) || defined(__MAC_10_8)
 #define AF_CAST_TO_BLOCK id
 #else
-#define AF_CAST_TO_BLOCK __bridge void *
+#define AF_CAST_TO_BLOCK void *
 #endif
 
 #pragma clang diagnostic push

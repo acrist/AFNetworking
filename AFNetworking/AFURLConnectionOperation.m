@@ -187,7 +187,7 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
         NSMutableArray *publicKeys = [NSMutableArray arrayWithCapacity:[pinnedCertificates count]];
         
         for (NSData *data in pinnedCertificates) {
-            SecCertificateRef allowedCertificate = SecCertificateCreateWithData(NULL, (__bridge CFDataRef)data);
+            SecCertificateRef allowedCertificate = SecCertificateCreateWithData(NULL, (CFDataRef)data);
             NSParameterAssert(allowedCertificate);
             
             SecCertificateRef allowedCertificates[] = {allowedCertificate};
@@ -204,7 +204,7 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
             
             SecKeyRef allowedPublicKey = SecTrustCopyPublicKey(allowedTrust);            
             NSParameterAssert(allowedPublicKey);
-            [publicKeys addObject:(__bridge_transfer id)allowedPublicKey];
+            [publicKeys addObject:(id)allowedPublicKey];
             
             CFRelease(allowedTrust);
             CFRelease(policy);
@@ -258,6 +258,9 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
         _backgroundTaskIdentifier = UIBackgroundTaskInvalid;
     }
 #endif
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (NSString *)description {
@@ -269,7 +272,7 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
     if (!block) {
         [super setCompletionBlock:nil];
     } else {
-        __weak __typeof(&*self)weakSelf = self;
+        __typeof(&*self)weakSelf = self;
         [super setCompletionBlock:^ {
             __strong __typeof(&*weakSelf)strongSelf = weakSelf;
             
@@ -386,7 +389,7 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
     if (!_responseStringEncoding && self.response) {
         NSStringEncoding stringEncoding = NSUTF8StringEncoding;
         if (self.response.textEncodingName) {
-            CFStringEncoding IANAEncoding = CFStringConvertIANACharSetNameToEncoding((__bridge CFStringRef)self.response.textEncodingName);
+            CFStringEncoding IANAEncoding = CFStringConvertIANACharSetNameToEncoding((CFStringRef)self.response.textEncodingName);
             if (IANAEncoding != kCFStringEncodingInvalidId) {
                 stringEncoding = CFStringConvertEncodingToNSStringEncoding(IANAEncoding);
             }
@@ -542,7 +545,7 @@ willSendRequestForAuthenticationChallenge:(NSURLAuthenticationChallenge *)challe
             SecCertificateRef certificate = SecTrustGetCertificateAtIndex(serverTrust, i);
             
             if (self.SSLPinningMode == AFSSLPinningModeCertificate) {
-                [trustChain addObject:(__bridge_transfer NSData *)SecCertificateCopyData(certificate)];
+                [trustChain addObject:(NSData *)SecCertificateCopyData(certificate)];
             } else if (self.SSLPinningMode == AFSSLPinningModePublicKey) {
                 SecCertificateRef someCertificates[] = {certificate};
                 CFArrayRef certificates = CFArrayCreate(NULL, (const void **)someCertificates, 1, NULL);
@@ -556,7 +559,7 @@ willSendRequestForAuthenticationChallenge:(NSURLAuthenticationChallenge *)challe
                 status = SecTrustEvaluate(trust, &result);
                 NSAssert(status == errSecSuccess, @"SecTrustEvaluate error: %ld", (long int)status);
                 
-                [trustChain addObject:(__bridge_transfer id)SecTrustCopyPublicKey(trust)];
+                [trustChain addObject:(id)SecTrustCopyPublicKey(trust)];
                 
                 CFRelease(trust);
                 CFRelease(certificates);

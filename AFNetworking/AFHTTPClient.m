@@ -84,7 +84,7 @@ static NSString * AFPercentEscapedQueryStringPairMemberFromStringWithEncoding(NS
     static NSString * const kAFCharactersToBeEscaped = @":/?&=;+!@#$()',*";
     static NSString * const kAFCharactersToLeaveUnescaped = @"[].";
 
-	return (__bridge_transfer  NSString *)CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (__bridge CFStringRef)string, (__bridge CFStringRef)kAFCharactersToLeaveUnescaped, (__bridge CFStringRef)kAFCharactersToBeEscaped, CFStringConvertNSStringEncodingToEncoding(encoding));
+	return ( NSString *)CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (CFStringRef)string, (CFStringRef)kAFCharactersToLeaveUnescaped, (CFStringRef)kAFCharactersToBeEscaped, CFStringConvertNSStringEncodingToEncoding(encoding));
 }
 
 #pragma mark -
@@ -294,6 +294,9 @@ NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
 #ifdef _SYSTEMCONFIGURATION_H
     [self stopMonitoringNetworkReachability];
 #endif
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (NSString *)description {
@@ -333,7 +336,7 @@ static AFNetworkReachabilityStatus AFNetworkReachabilityStatusForFlags(SCNetwork
 
 static void AFNetworkReachabilityCallback(SCNetworkReachabilityRef __unused target, SCNetworkReachabilityFlags flags, void *info) {
     AFNetworkReachabilityStatus status = AFNetworkReachabilityStatusForFlags(flags);
-    AFNetworkReachabilityStatusBlock block = (__bridge AFNetworkReachabilityStatusBlock)info;
+    AFNetworkReachabilityStatusBlock block = (AFNetworkReachabilityStatusBlock)info;
     if (block) {
         block(status);
     }
@@ -367,7 +370,7 @@ static void AFNetworkReachabilityReleaseCallback(const void *info) {
         return;
     }
 
-    __weak __typeof(&*self)weakSelf = self;
+    __typeof(&*self)weakSelf = self;
     AFNetworkReachabilityStatusBlock callback = ^(AFNetworkReachabilityStatus status) {
         __strong __typeof(&*weakSelf)strongSelf = weakSelf;
         if (!strongSelf) {
@@ -380,7 +383,7 @@ static void AFNetworkReachabilityReleaseCallback(const void *info) {
         }
     };
 
-    SCNetworkReachabilityContext context = {0, (__bridge void *)callback, AFNetworkReachabilityRetainCallback, AFNetworkReachabilityReleaseCallback, NULL};
+    SCNetworkReachabilityContext context = {0, (void *)callback, AFNetworkReachabilityRetainCallback, AFNetworkReachabilityReleaseCallback, NULL};
     SCNetworkReachabilitySetCallback(self.networkReachability, AFNetworkReachabilityCallback, &context);
 
     /* Network reachability monitoring does not establish a baseline for IP addresses as it does for hostnames, so if the base URL host is an IP address, the initial reachability callback is manually triggered.
@@ -475,7 +478,7 @@ static void AFNetworkReachabilityReleaseCallback(const void *info) {
             url = [NSURL URLWithString:[[url absoluteString] stringByAppendingFormat:[path rangeOfString:@"?"].location == NSNotFound ? @"?%@" : @"&%@", AFQueryStringFromParametersWithEncoding(parameters, self.stringEncoding)]];
             [request setURL:url];
         } else {
-            NSString *charset = (__bridge NSString *)CFStringConvertEncodingToIANACharSetName(CFStringConvertNSStringEncodingToEncoding(self.stringEncoding));
+            NSString *charset = (NSString *)CFStringConvertEncodingToIANACharSetName(CFStringConvertNSStringEncodingToEncoding(self.stringEncoding));
             NSError *error = nil;
 
             switch (self.parameterEncoding) {
@@ -623,7 +626,7 @@ static void AFNetworkReachabilityReleaseCallback(const void *info) {
 
     for (AFHTTPRequestOperation *operation in operations) {
         AFCompletionBlock originalCompletionBlock = [operation.completionBlock copy];
-        __weak __typeof(&*operation)weakOperation = operation;
+        __typeof(&*operation)weakOperation = operation;
         operation.completionBlock = ^{
             __strong __typeof(&*weakOperation)strongOperation = weakOperation;
             dispatch_queue_t queue = strongOperation.successCallbackQueue ?: dispatch_get_main_queue();
@@ -779,7 +782,7 @@ static void AFNetworkReachabilityReleaseCallback(const void *info) {
 	Gestalt(gestaltSystemVersionMajor, &versMajor);
 	Gestalt(gestaltSystemVersionMinor, &versMinor);
 	Gestalt(gestaltSystemVersionBugFix, &versBugFix);
-	osRelease = [NSString stringWithFormat:@"%d.%d.%d", versMajor, versMinor, versBugFix];
+	osRelease = [NSString stringWithFormat:@"%d.%d.%d", (int)versMajor, (int)versMinor, (int)versBugFix];
 #endif
 	if (osType && osRelease) {
 		[userAgentString appendFormat:@" %@/%@;", osType, osRelease];
@@ -832,8 +835,8 @@ static inline NSString * AFMultipartFormFinalBoundary() {
 
 static inline NSString * AFContentTypeForPathExtension(NSString *extension) {
 #ifdef __UTTYPE__
-    NSString *UTI = (__bridge_transfer NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (__bridge CFStringRef)extension, NULL);
-    NSString *contentType = (__bridge_transfer NSString *)UTTypeCopyPreferredTagWithClass((__bridge CFStringRef)UTI, kUTTagClassMIMEType);
+    NSString *UTI = (NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (CFStringRef)extension, NULL);
+    NSString *contentType = (NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)UTI, kUTTagClassMIMEType);
     if (!contentType) {
         return @"application/octet-stream";
     } else {
@@ -1137,6 +1140,9 @@ static const NSUInteger AFMultipartBodyStreamProviderDefaultBufferLength = 4096;
 
 - (void)dealloc {
     _outputStream.delegate = nil;
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (void)setInitialAndFinalBoundaries {
@@ -1317,6 +1323,9 @@ static const NSUInteger AFMultipartBodyStreamProviderDefaultBufferLength = 4096;
         [_inputStream close];
         _inputStream = nil;
     }
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (NSInputStream *)inputStream {
