@@ -123,6 +123,13 @@ typedef enum {
 @class AFHTTPRequestOperation;
 @protocol AFMultipartFormData;
 
+#ifdef _SYSTEMCONFIGURATION_H
+typedef SCNetworkReachabilityRef AFNetworkReachabilityRef;
+typedef void (^AFNetworkReachabilityStatusBlock)(AFNetworkReachabilityStatus status);
+#else
+typedef id AFNetworkReachabilityRef;
+#endif
+
 @interface AFHTTPClient : NSObject <NSCoding, NSCopying>
 {
 @private
@@ -132,6 +139,13 @@ typedef enum {
     NSMutableArray *_registeredHTTPOperationClassNames;
     NSMutableDictionary *_defaultHeaders;
     NSOperationQueue *_operationQueue;
+    
+    // iVars for 32-bits
+    AFNetworkReachabilityRef _networkReachability;
+    AFNetworkReachabilityStatus _networkReachabilityStatus;
+    AFNetworkReachabilityStatusBlock _networkReachabilityStatusBlock;
+    NSURLCredential *_defaultCredential;
+    BOOL _allowsInvalidSSLCertificate;
 }
 
 

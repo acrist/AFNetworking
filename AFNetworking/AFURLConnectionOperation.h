@@ -84,6 +84,13 @@
  - Operation copies do not include `completionBlock`. `completionBlock` often strongly captures a reference to `self`, which would otherwise have the unintuitive side-effect of pointing to the _original_ operation when copied.
  */
 
+typedef NS_ENUM(signed short, AFOperationState) {
+    AFOperationPausedState      = -1,
+    AFOperationReadyState       = 1,
+    AFOperationExecutingState   = 2,
+    AFOperationFinishedState    = 3,
+};
+
 #ifdef _AFNETWORKING_PIN_SSL_CERTIFICATES_
 typedef enum {
     AFSSLPinningModeNone,
@@ -91,6 +98,20 @@ typedef enum {
     AFSSLPinningModeCertificate,
 } AFURLConnectionOperationSSLPinningMode;
 #endif
+
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
+typedef UIBackgroundTaskIdentifier AFBackgroundTaskIdentifier;
+#else
+typedef id AFBackgroundTaskIdentifier;
+#endif
+
+typedef void (^AFURLConnectionOperationProgressBlock)(NSUInteger bytes, long long totalBytes, long long totalBytesExpected);
+typedef BOOL (^AFURLConnectionOperationAuthenticationAgainstProtectionSpaceBlock)(NSURLConnection *connection, NSURLProtectionSpace *protectionSpace);
+typedef void (^AFURLConnectionOperationAuthenticationChallengeBlock)(NSURLConnection *connection, NSURLAuthenticationChallenge *challenge);
+typedef NSCachedURLResponse * (^AFURLConnectionOperationCacheResponseBlock)(NSURLConnection *connection, NSCachedURLResponse *cachedResponse);
+typedef NSURLRequest * (^AFURLConnectionOperationRedirectResponseBlock)(NSURLConnection *connection, NSURLRequest *request, NSURLResponse *redirectResponse);
+
+
 @interface AFURLConnectionOperation : NSOperation <NSURLConnectionDelegate,
 #if (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 50000) || \
     (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080)
@@ -109,6 +130,24 @@ NSCoding, NSCopying>
     id _authenticationAgainstProtectionSpace;
     id _authenticationChallenge;
     id _cacheResponse;
+
+    AFOperationState _state;
+    BOOL _cancelled;
+    NSRecursiveLock *_lock;
+    
+    NSSet *_runLoopModes;
+    
+    NSURLConnection *_connection;
+    NSURLRequest *_request;
+    NSHTTPURLResponse *_response;
+    NSError *_error;
+    BOOL _allowsInvalidSSLCertificate;
+    NSStringEncoding _responseStringEncoding;
+    NSURLCredential *_credential;
+    BOOL _shouldUseCredentialStorage;
+    NSDictionary *_userInfo;
+    AFBackgroundTaskIdentifier _backgroundTaskIdentifier;
+    AFURLConnectionOperationRedirectResponseBlock _redirectResponse;
 }
 
 

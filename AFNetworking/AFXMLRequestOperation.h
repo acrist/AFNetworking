@@ -40,6 +40,11 @@
  When `AFXMLRequestOperation` is registered with `AFHTTPClient`, the response object in the success callback of `HTTPRequestOperationWithRequest:success:failure:` will be an instance of `NSXMLParser`. On platforms that support `NSXMLDocument`, you have the option to ignore the response object, and simply use the `responseXMLDocument` property of the operation argument of the callback.
  */
 @interface AFXMLRequestOperation : AFHTTPRequestOperation
+{
+    NSXMLParser *_responseXMLParser;
+    NSXMLDocument *_responseXMLDocument;
+    NSError *_XMLError;
+}
 
 ///----------------------------
 /// @name Getting Response Data

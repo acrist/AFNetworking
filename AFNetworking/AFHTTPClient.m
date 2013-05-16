@@ -45,11 +45,6 @@
 #ifdef _SYSTEMCONFIGURATION_H
 NSString * const AFNetworkingReachabilityDidChangeNotification = @"com.alamofire.networking.reachability.change";
 NSString * const AFNetworkingReachabilityNotificationStatusItem = @"AFNetworkingReachabilityNotificationStatusItem";
-
-typedef SCNetworkReachabilityRef AFNetworkReachabilityRef;
-typedef void (^AFNetworkReachabilityStatusBlock)(AFNetworkReachabilityStatus status);
-#else
-typedef id AFNetworkReachabilityRef;
 #endif
 
 typedef void (^AFCompletionBlock)(void);
@@ -95,6 +90,10 @@ static NSString * AFPercentEscapedQueryStringPairMemberFromStringWithEncoding(NS
 #pragma mark -
 
 @interface AFQueryStringPair : NSObject
+{
+    id _field, _value;
+}
+
 @property (readwrite, nonatomic, strong) id field;
 @property (readwrite, nonatomic, strong) id value;
 
@@ -155,7 +154,7 @@ NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
         // Sort dictionary keys to ensure consistent ordering in query string, which is important when deserializing potentially ambiguous sequences, such as an array of dictionaries
         NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"description" ascending:YES selector:@selector(caseInsensitiveCompare:)];
         for (id nestedKey in [dictionary.allKeys sortedArrayUsingDescriptors:@[ sortDescriptor ]]) {
-            id nestedValue = dictionary[nestedKey];
+            id nestedValue = [dictionary valueForKey:nestedKey];
             if (nestedValue) {
                 [mutableQueryStringComponents addObjectsFromArray:AFQueryStringPairsFromKeyAndValue((key ? [NSString stringWithFormat:@"%@[%@]", key, nestedKey] : nestedKey), nestedValue)];
             }
@@ -177,7 +176,14 @@ NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
     return mutableQueryStringComponents;
 }
 
+@class AFMultipartBodyStreamProvider;
 @interface AFStreamingMultipartFormData : NSObject <AFMultipartFormData>
+{
+    NSMutableURLRequest *_request;
+    AFMultipartBodyStreamProvider *_bodyStream;
+    NSStringEncoding _stringEncoding;
+}
+
 - (id)initWithURLRequest:(NSMutableURLRequest *)urlRequest
           stringEncoding:(NSStringEncoding)encoding;
 
@@ -208,12 +214,6 @@ NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
 @end
 
 @implementation AFHTTPClient
-{
-    // iVars for 32-bits
-    AFNetworkReachabilityRef _networkReachability;
-    AFNetworkReachabilityStatusBlock _networkReachabilityStatusBlock;
-}
-
 @synthesize baseURL = _baseURL;
 @synthesize stringEncoding = _stringEncoding;
 @synthesize parameterEncoding = _parameterEncoding;
@@ -847,7 +847,33 @@ static inline NSString * AFContentTypeForPathExtension(NSString *extension) {
 NSUInteger const kAFUploadStream3GSuggestedPacketSize = 1024 * 16;
 NSTimeInterval const kAFUploadStream3GSuggestedDelay = 0.2;
 
+typedef enum {
+    AFInitialPhase               = 0,
+    AFEncapsulationBoundaryPhase = 1,
+    AFHeaderPhase                = 2,
+    AFBodyPhase                  = 3,
+    AFFinalBoundaryPhase         = 4,
+    AFCompletedPhase             = 5,
+} AFHTTPBodyPartReadPhase;
+
 @interface AFHTTPBodyPart : NSObject
+{
+    AFHTTPBodyPartReadPhase _phase;
+    NSInputStream *_inputStream;
+    unsigned long long _phaseReadOffset;
+    
+    NSStringEncoding _stringEncoding;
+    NSDictionary *_headers;
+    id _body;
+    unsigned long long _bodyContentLength;
+    
+    BOOL _hasInitialBoundary;
+    BOOL _hasFinalBoundary;
+    
+    BOOL _bytesAvailable;
+    unsigned long long _contentLength;
+}
+
 @property (nonatomic, assign) NSStringEncoding stringEncoding;
 @property (nonatomic, strong) NSDictionary *headers;
 @property (nonatomic, strong) id body;
@@ -865,6 +891,23 @@ NSTimeInterval const kAFUploadStream3GSuggestedDelay = 0.2;
 @end
 
 @interface AFMultipartBodyStreamProvider : NSObject
+{
+    // Workaround for stream delegates being weakly referenced, but otherwise unowned
+    __strong id _self;
+    NSStringEncoding _stringEncoding;
+    NSMutableArray *_HTTPBodyParts;
+    NSEnumerator *_HTTPBodyPartEnumerator;
+    AFHTTPBodyPart *_currentHTTPBodyPart;
+    NSOutputStream *_outputStream;
+    NSMutableData *_buffer;
+
+    NSUInteger _numberOfBytesInPacket;
+    NSTimeInterval _delay;
+    NSInputStream *_inputStream;
+    unsigned long long _contentLength;
+    BOOL _empty;
+}
+
 @property (nonatomic, assign) NSUInteger bufferLength;
 @property (nonatomic, assign) NSTimeInterval delay;
 @property (nonatomic, strong) NSInputStream *inputStream;
@@ -1065,11 +1108,7 @@ NSTimeInterval const kAFUploadStream3GSuggestedDelay = 0.2;
 
 static const NSUInteger AFMultipartBodyStreamProviderDefaultBufferLength = 4096;
 
-@implementation AFMultipartBodyStreamProvider {
-@private
-    // Workaround for stream delegates being weakly referenced, but otherwise unowned
-    __strong id _self;
-}
+@implementation AFMultipartBodyStreamProvider
 @synthesize stringEncoding = _stringEncoding;
 @synthesize HTTPBodyParts = _HTTPBodyParts;
 @synthesize HTTPBodyPartEnumerator = _HTTPBodyPartEnumerator;
@@ -1245,20 +1284,7 @@ static const NSUInteger AFMultipartBodyStreamProviderDefaultBufferLength = 4096;
 
 #pragma mark -
 
-typedef enum {
-    AFInitialPhase               = 0,
-    AFEncapsulationBoundaryPhase = 1,
-    AFHeaderPhase                = 2,
-    AFBodyPhase                  = 3,
-    AFFinalBoundaryPhase         = 4,
-    AFCompletedPhase             = 5,
-} AFHTTPBodyPartReadPhase;
-
-@interface AFHTTPBodyPart () <NSCopying> {
-    AFHTTPBodyPartReadPhase _phase;
-    NSInputStream *_inputStream;
-    unsigned long long _phaseReadOffset;
-}
+@interface AFHTTPBodyPart () <NSCopying>
 
 - (BOOL)transitionToNextPhase;
 - (NSInteger)readData:(NSData *)data

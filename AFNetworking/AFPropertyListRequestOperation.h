@@ -33,6 +33,12 @@
  - `application/x-plist`
  */
 @interface AFPropertyListRequestOperation : AFHTTPRequestOperation
+{
+    id _responsePropertyList;
+    NSPropertyListReadOptions _propertyListReadOptions;
+    NSPropertyListFormat _propertyListFormat;
+    NSError *_propertyListError;
+}
 
 ///----------------------------
 /// @name Getting Response Data

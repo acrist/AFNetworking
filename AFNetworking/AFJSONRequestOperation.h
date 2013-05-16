@@ -36,6 +36,11 @@
  @warning JSON parsing will use the built-in `NSJSONSerialization` class.
  */
 @interface AFJSONRequestOperation : AFHTTPRequestOperation
+{
+    id _responseJSON;
+    NSError *_JSONError;
+    NSJSONReadingOptions _JSONReadingOptions;
+}
 
 ///----------------------------
 /// @name Getting Response Data

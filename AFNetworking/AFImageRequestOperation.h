@@ -50,7 +50,9 @@
  - `image/x-win-bitmap`
  */
 @interface AFImageRequestOperation : AFHTTPRequestOperation
-
+{
+    NSImage *_responseImage;
+}
 /**
  An image constructed from the response data. If an error occurs during the request, `nil` will be returned, and the `error` property will be set to the error.
  */

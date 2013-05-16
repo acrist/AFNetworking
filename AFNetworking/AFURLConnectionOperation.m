@@ -26,25 +26,10 @@
 #import <UIKit/UIKit.h>
 #endif
 
-#if !__has_feature(objc_arc)
-#error AFNetworking must be built with ARC.
-// You can turn on ARC for only AFNetworking files by adding -fobjc-arc to the build phase for each of its files.
-#endif
-
-typedef enum {
-    AFOperationPausedState      = -1,
-    AFOperationReadyState       = 1,
-    AFOperationExecutingState   = 2,
-    AFOperationFinishedState    = 3,
-} _AFOperationState;
-
-typedef signed short AFOperationState;
-
-#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED)
-typedef UIBackgroundTaskIdentifier AFBackgroundTaskIdentifier;
-#else
-typedef id AFBackgroundTaskIdentifier;
-#endif
+//#if !__has_feature(objc_arc)
+//#error AFNetworking must be built with ARC.
+//// You can turn on ARC for only AFNetworking files by adding -fobjc-arc to the build phase for each of its files.
+//#endif
 
 static NSString * const kAFNetworkingLockName = @"com.alamofire.networking.operation.lock";
 
@@ -54,12 +39,6 @@ NSString * const AFNetworkingOperationFailingURLResponseErrorKey = @"AFNetworkin
 
 NSString * const AFNetworkingOperationDidStartNotification = @"com.alamofire.networking.operation.start";
 NSString * const AFNetworkingOperationDidFinishNotification = @"com.alamofire.networking.operation.finish";
-
-typedef void (^AFURLConnectionOperationProgressBlock)(NSUInteger bytes, long long totalBytes, long long totalBytesExpected);
-typedef BOOL (^AFURLConnectionOperationAuthenticationAgainstProtectionSpaceBlock)(NSURLConnection *connection, NSURLProtectionSpace *protectionSpace);
-typedef void (^AFURLConnectionOperationAuthenticationChallengeBlock)(NSURLConnection *connection, NSURLAuthenticationChallenge *challenge);
-typedef NSCachedURLResponse * (^AFURLConnectionOperationCacheResponseBlock)(NSURLConnection *connection, NSCachedURLResponse *cachedResponse);
-typedef NSURLRequest * (^AFURLConnectionOperationRedirectResponseBlock)(NSURLConnection *connection, NSURLRequest *request, NSURLResponse *redirectResponse);
 
 static inline NSString * AFKeyPathFromOperationState(AFOperationState state) {
     switch (state) {
@@ -131,20 +110,6 @@ static inline BOOL AFStateTransitionIsValid(AFOperationState fromState, AFOperat
 @end
 
 @implementation AFURLConnectionOperation
-{
-@private
-    AFOperationState _state;
-    BOOL _cancelled;
-    NSRecursiveLock *_lock;
-    
-    NSSet *_runLoopModes;
-    
-    NSURLConnection *_connection;
-    NSURLRequest *_request;
-    NSHTTPURLResponse *_response;
-    NSError *_error;
-}
-
 @synthesize state = _state;
 @synthesize cancelled = _cancelled;
 @synthesize connection = _connection;

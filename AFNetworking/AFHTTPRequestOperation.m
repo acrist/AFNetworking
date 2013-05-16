@@ -130,6 +130,9 @@ static void AFSwizzleClassMethodWithClassAndSelectorUsingBlock(Class klass, SEL 
 #endif
         _failureCallbackQueue = NULL;
     }
+#if !__has_feature(objc_arc)
+    [super dealloc];
+#endif
 }
 
 - (NSError *)error {
